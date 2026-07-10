@@ -18,13 +18,14 @@ The project ships with a `MockLLM` implementation that echoes back the user's in
 
 | Type | Description |
 |------|-------------|
-| `Message` | A single chat message with `role` (system/user/assistant) and `content` |
-| `ChatRequest` | Input to `Chat()`: messages, model, temperature, max tokens, stop sequences |
+| `Message` | A single chat message with `role` (system/user/assistant/tool), `content`, and optional `ToolCalls` |
+| `ChatRequest` | Input to `Chat()`: messages, model, temperature, max tokens, stop sequences, tools |
 | `ChatResponse` | Output from `Chat()`: response message, model name, token usage, finish reason |
 | `UsageStats` | Token counts for prompt, completion, and total |
 | `FinishReason` | Why generation stopped (`stop`, `length`, `error`, `content_filter`) |
 | `ChatStream` | Iterator interface (`Next()`, `Current()`, `Err()`, `Close()`) for streaming chunks |
 | `ChatChunk` | One incremental delta: `Content`, `Role`, `ToolCalls`, `FinishReason`, `Usage` |
+| `ToolCall` | A tool call made by the LLM (non-streaming): `ID`, `Function` (name + arguments) |
 | `ToolCallDelta` | Incremental tool call fragment for streaming: `Index`, `ID`, `Function` |
 
 ## Getting Started

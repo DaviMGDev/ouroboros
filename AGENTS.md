@@ -29,7 +29,7 @@
   - Constants: `PascalCase` with descriptive names (e.g., `RoleSystem`, `FinishReasonStop`)
 - **JSON tags**: Used on all serializable struct fields (e.g., `json:"role"`)
 - **Error handling**: idiomatic Go — functions return errors as last return value
-- **Interface design**: Small, focused interfaces (`LLM` with `Chat` and `Complete` methods)
+- **Interface design**: Small, focused interfaces (`LLM` with `Chat`, `Complete`, and `StreamChat` methods)
 
 ## Architecture
 
@@ -57,6 +57,69 @@ my-agent/
   - `internal/providers/ollama/ollama.go` — `OllamaLLM` provider implementation for local Ollama instances
   - `internal/agent/agent.go` — `Agent` interface, `FunctionCallingAgent` (concrete agent with tool-calling loop and parallel tool execution), `AgentStream`, `MockAgent`, `MockTool`
   - `cmd/my-agent/main.go` — entry point (REPL interactive chat with Ollama)
+
+## Architecture Decision Records
+
+Record significant architectural and structural decisions in `docs/adr/` as
+Markdown files following the convention established in
+`docs/adr/001-flat-to-module-layout.md`.
+
+### When to Write
+
+Write an ADR when a decision has lasting impact on the project — module
+layout, dependency choices, interface design, provider architecture, test
+strategy, or any structurally significant change.
+
+### Naming Convention
+
+```
+docs/adr/NNN-title-with-dashes.md
+```
+
+- `NNN` is the next available zero-padded sequence number (e.g., `002`).
+- Title uses kebab-case, matching the decision summary.
+
+### Template
+
+```markdown
+# ADR NNN: Short Title in Title Case
+
+**Status**: [Proposed | Accepted | Deprecated | Superseded]
+
+**Date**: YYYY-MM-DD
+
+## Context
+
+What prompted the decision? What constraints were at play? What alternatives
+were considered? Describe the problem space.
+
+## Decision
+
+What was decided? Be specific about the chosen approach, its shape, and
+its boundaries.
+
+## Consequences
+
+### Positive
+
+- Benefit 1
+- Benefit 2
+
+### Negative
+
+- Trade-off 1
+- Trade-off 2
+
+### Risks
+
+- Risk 1 (mitigation: ...)
+- Risk 2 (mitigation: ...)
+
+## Rejected Alternatives
+
+1. **Alternative A** — Why it was not chosen.
+2. **Alternative B** — Why it was not chosen.
+```
 
 ## Dependencies
 
