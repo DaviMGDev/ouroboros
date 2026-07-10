@@ -9,7 +9,7 @@ A Go-based LLM agent framework with a generic chat completion interface and buil
 - **`Chat(ctx, *ChatRequest)`** — Conversational chat with message history, model selection, and generation parameters.
 - **`Complete(ctx, prompt)`** — Single-turn text completion.
 
-The project ships with a `MockLLM` implementation that returns a canned response, making it easy to write unit tests and prototype agent logic without an API key.
+The project ships with a `MockLLM` implementation that echoes back the user's input, making it easy to write unit tests and prototype agent logic without an API key.
 
 ## Types
 
@@ -54,7 +54,7 @@ func main() {
 
 ```bash
 go run .
-# Output: Response: This is a mock response.
+# Output: Response: Hello, how are you?
 ```
 
 ## Extending

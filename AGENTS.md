@@ -16,7 +16,7 @@
 - **Run tests verbosely**: `go test -v ./...`
 - **Run tests with coverage**: `go test -cover ./...`
 
-> No tests have been written yet. The `MockLLM` implementation in `llm.go` is designed to simplify unit testing of code that depends on the `LLM` interface.
+> Tests are in `llm_test.go`. The `MockLLM` implementation in `llm.go` echoes the user's input and is designed to simplify unit testing of code that depends on the `LLM` interface.
 
 ## Code Style
 
