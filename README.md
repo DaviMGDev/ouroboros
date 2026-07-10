@@ -4,6 +4,8 @@
 
 A Go-based LLM agent framework with a generic chat completion interface, tool-calling agent loop, and built-in mock implementation.
 
+> **Version**: Run `my-agent --version` or see [CHANGELOG](./CHANGELOG.md).
+
 ## Overview
 
 `my-agent` defines a minimal `LLM` interface that abstracts provider-specific LLM interactions behind three methods:
