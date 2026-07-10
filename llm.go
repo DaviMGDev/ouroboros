@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 )
 
 // LLM abstracts a language model provider with chat completion and
@@ -74,6 +75,9 @@ type MockLLM struct{}
 var _ LLM = (*MockLLM)(nil)
 
 func (m *MockLLM) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("chat request cannot be nil")
+	}
 	content := ""
 	if len(req.Messages) > 0 {
 		content = req.Messages[len(req.Messages)-1].Content
