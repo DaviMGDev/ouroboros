@@ -3,13 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
-// LLM abstracts a language model provider with chat completion and
-// single-turn text completion methods.
+// LLM abstracts a language model provider with chat completion,
+// single-turn text completion, and streaming chat completion methods.
 type LLM interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 	Complete(ctx context.Context, prompt string) (string, error)
+	// StreamChat returns a ChatStream that yields chunks incrementally.
+	// The caller MUST call Close() when finished, regardless of whether
+	// iteration completes naturally.
+	StreamChat(ctx context.Context, req *ChatRequest) (ChatStream, error)
 }
 
 // MessageRole identifies the sender of a chat message.
@@ -68,9 +73,50 @@ const (
 	FinishReasonContentFilter FinishReason = "content_filter"
 )
 
+// ChatStream is a streaming iterator over chat completion chunks.
+// The caller MUST call Close() when finished, regardless of whether
+// iteration completes naturally.
+type ChatStream interface {
+	// Next advances to the next chunk. Returns false when the stream
+	// is exhausted (call Err() to check for errors).
+	Next() bool
+	// Current returns the most recently yielded chunk. Only valid
+	// after a true return from Next().
+	Current() ChatChunk
+	// Err returns the first error encountered during streaming, if any.
+	Err() error
+	// Close releases any resources held by the stream. Safe to call
+	// more than once.
+	Close() error
+}
+
+// ChatChunk is one incremental delta from a streaming chat response.
+type ChatChunk struct {
+	Content     string          `json:"content"`
+	Role        MessageRole     `json:"role"`
+	ToolCalls   []ToolCallDelta `json:"tool_calls,omitempty"`
+	FinishReason FinishReason   `json:"finish_reason,omitempty"`
+	Usage       *UsageStats     `json:"usage,omitempty"`
+}
+
+// ToolCallDelta carries incremental tool call data for streaming responses.
+type ToolCallDelta struct {
+	Index    int    `json:"index"`
+	ID       string `json:"id,omitempty"`
+	Function struct {
+		Name      string `json:"name,omitempty"`
+		Arguments string `json:"arguments,omitempty"`
+	} `json:"function,omitempty"`
+}
+
 // MockLLM is an echo implementation of LLM that returns the user's input back.
 // It is useful for unit testing code that depends on the LLM interface.
-type MockLLM struct{}
+//
+// ChunkDelay, if non-zero, causes MockChatStream to sleep for that duration
+// before yielding each chunk, simulating real streaming latency.
+type MockLLM struct {
+	ChunkDelay time.Duration
+}
 
 var _ LLM = (*MockLLM)(nil)
 
@@ -99,4 +145,66 @@ func (m *MockLLM) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, er
 
 func (m *MockLLM) Complete(ctx context.Context, prompt string) (string, error) {
 	return prompt, nil
+}
+
+// MockChatStream is an iterator over pre-built ChatChunks for testing.
+type MockChatStream struct {
+	chunks     []ChatChunk
+	pos        int
+	closed     bool
+	chunkDelay time.Duration
+}
+
+var _ ChatStream = (*MockChatStream)(nil)
+
+func (s *MockChatStream) Next() bool {
+	if s.closed {
+		return false
+	}
+	if s.pos < len(s.chunks) {
+		s.pos++
+		if s.chunkDelay > 0 {
+			time.Sleep(s.chunkDelay)
+		}
+		return true
+	}
+	return false
+}
+
+func (s *MockChatStream) Current() ChatChunk {
+	if s.pos == 0 || s.pos > len(s.chunks) {
+		return ChatChunk{}
+	}
+	return s.chunks[s.pos-1]
+}
+
+func (s *MockChatStream) Err() error { return nil }
+
+func (s *MockChatStream) Close() error { s.closed = true; return nil }
+
+// StreamChat returns a ChatStream that echoes the last user message content
+// as a single content chunk followed by a final done chunk.
+func (m *MockLLM) StreamChat(ctx context.Context, req *ChatRequest) (ChatStream, error) {
+	if req == nil {
+		return nil, fmt.Errorf("chat request cannot be nil")
+	}
+	content := ""
+	if len(req.Messages) > 0 {
+		content = req.Messages[len(req.Messages)-1].Content
+	}
+	chunks := []ChatChunk{
+		{
+			Content: content,
+			Role:    RoleAssistant,
+		},
+		{
+			FinishReason: FinishReasonStop,
+			Usage: &UsageStats{
+				PromptTokens:     len(content),
+				CompletionTokens: len(content),
+				TotalTokens:      len(content) * 2,
+			},
+		},
+	}
+	return &MockChatStream{chunks: chunks, chunkDelay: m.ChunkDelay}, nil
 }
