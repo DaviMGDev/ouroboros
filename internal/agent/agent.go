@@ -210,6 +210,13 @@ func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (resp
 		totalUsage.CompletionTokens += llmResp.Usage.CompletionTokens
 		totalUsage.TotalTokens += llmResp.Usage.TotalTokens
 
+		// If the LLM returned neither content nor tool calls, the model
+		// likely doesn't support the tool format or the request was malformed.
+		if llmResp.Message.Content == "" && len(llmResp.Message.ToolCalls) == 0 {
+			runErr = fmt.Errorf("llm returned empty response (model %q may not support tool calling)", req.Model)
+			return
+		}
+
 		if len(llmResp.Message.ToolCalls) > 0 {
 			// LLM wants to call tools — append assistant message with tool calls
 			messages = append(messages, llmResp.Message)
@@ -303,9 +310,11 @@ func (a *FunctionCallingAgent) executeTools(ctx context.Context, toolCalls []llm
 					results[i] = fmt.Sprintf(`{"error":"hook: %v"}`, hookErr)
 					return
 				}
-			} else if execErr != nil {
-				results[i] = fmt.Sprintf(`{"error":"%v"}`, execErr)
-				return
+			}
+
+			// Encode execution error if the hook didn't produce a result
+			if execErr != nil {
+				result = fmt.Sprintf(`{"error":"%v"}`, execErr)
 			}
 			results[i] = result
 		}()
@@ -425,6 +434,13 @@ func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest
 			}
 		}
 		llmStream.Close()
+
+		// If the LLM returned neither content nor tool calls, the model
+		// likely doesn't support the tool format or the request was malformed.
+		if sb.Len() == 0 && len(toolCallDeltas) == 0 {
+			ch <- AgentChunk{Type: AgentEventDone, Done: true, Error: fmt.Sprintf("llm returned empty response (model %q may not support tool calling)", req.Model)}
+			return
+		}
 
 		// Build a ChatResponse from accumulated streaming data for AfterLLM hook
 		accumulatedResp := &llm.ChatResponse{
