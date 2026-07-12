@@ -118,18 +118,37 @@ func (s *agentStream) Close() error {
 // results back → repeat until the LLM responds with content.
 type FunctionCallingAgent struct {
 	LLM        llm.LLM
+	Hooks      []Hook        // ordered; nil or empty = no hook overhead
 	ChunkDelay time.Duration // when >0, adds delay between stream chunks for testing
 }
 
 var _ Agent = (*FunctionCallingAgent)(nil)
 
 // Run executes the tool-calling loop synchronously.
-func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (*AgentResponse, error) {
+func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (resp *AgentResponse, runErr error) {
 	if req == nil {
 		return nil, fmt.Errorf("agent: request cannot be nil")
 	}
 	if a.LLM == nil {
 		return nil, fmt.Errorf("agent: LLM is nil")
+	}
+
+	// P6: AfterAgent — deferred to wrap all exit paths (success, max-iterations, errors)
+	originalReq := req
+	defer func() {
+		if len(a.Hooks) > 0 {
+			resp, _ = applyAfterAgent(ctx, a.Hooks, originalReq, resp, runErr)
+		}
+	}()
+
+	// P1: BeforeAgent
+	if len(a.Hooks) > 0 {
+		var hookErr error
+		req, hookErr = applyBeforeAgent(ctx, a.Hooks, req)
+		if hookErr != nil {
+			runErr = hookErr
+			return
+		}
 	}
 
 	maxIter := req.MaxIterations
@@ -145,7 +164,8 @@ func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (*Age
 	for iter := 0; iter < maxIter; iter++ {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			runErr = ctx.Err()
+			return
 		default:
 		}
 
@@ -158,22 +178,43 @@ func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (*Age
 			Tools:         req.Tools,
 		}
 
-		resp, err := a.LLM.Chat(ctx, chatReq)
+		// P2: BeforeLLM
+		if len(a.Hooks) > 0 {
+			var hookErr error
+			chatReq, hookErr = applyBeforeLLM(ctx, a.Hooks, chatReq)
+			if hookErr != nil {
+				runErr = hookErr
+				return
+			}
+		}
+
+		llmResp, err := a.LLM.Chat(ctx, chatReq)
 		if err != nil {
-			return nil, fmt.Errorf("agent: llm chat iteration %d: %w", iter, err)
+			runErr = fmt.Errorf("agent: llm chat iteration %d: %w", iter, err)
+			return
+		}
+
+		// P3: AfterLLM
+		if len(a.Hooks) > 0 {
+			var hookErr error
+			llmResp, hookErr = applyAfterLLM(ctx, a.Hooks, chatReq, llmResp)
+			if hookErr != nil {
+				runErr = hookErr
+				return
+			}
 		}
 
 		// Accumulate usage across iterations
-		totalUsage.PromptTokens += resp.Usage.PromptTokens
-		totalUsage.CompletionTokens += resp.Usage.CompletionTokens
-		totalUsage.TotalTokens += resp.Usage.TotalTokens
+		totalUsage.PromptTokens += llmResp.Usage.PromptTokens
+		totalUsage.CompletionTokens += llmResp.Usage.CompletionTokens
+		totalUsage.TotalTokens += llmResp.Usage.TotalTokens
 
-		if len(resp.Message.ToolCalls) > 0 {
+		if len(llmResp.Message.ToolCalls) > 0 {
 			// LLM wants to call tools — append assistant message with tool calls
-			messages = append(messages, resp.Message)
+			messages = append(messages, llmResp.Message)
 
-			// Execute tools in parallel
-			results := a.executeTools(ctx, resp.Message.ToolCalls, req.Tools)
+			// Execute tools in parallel (P4/P5 fire inside executeTools)
+			results := a.executeTools(ctx, llmResp.Message.ToolCalls, req.Tools)
 			for _, tr := range results {
 				messages = append(messages, llm.Message{
 					Role:    llm.RoleTool,
@@ -184,18 +225,22 @@ func (a *FunctionCallingAgent) Run(ctx context.Context, req *AgentRequest) (*Age
 		}
 
 		// LLM responded with content — done
-		messages = append(messages, resp.Message)
-		return &AgentResponse{
+		messages = append(messages, llmResp.Message)
+		resp = &AgentResponse{
 			Messages: messages,
-			Final:    resp.Message,
+			Final:    llmResp.Message,
 			Usage:    totalUsage,
-		}, nil
+		}
+		return
 	}
 
-	return nil, fmt.Errorf("agent: max iterations (%d) exceeded without final response", maxIter)
+	runErr = fmt.Errorf("agent: max iterations (%d) exceeded without final response", maxIter)
+	return
 }
 
 // executeTools runs all tool calls in parallel and returns their results as strings.
+// Hook errors (P4/P5) are encoded as tool result errors — they do not abort the agent
+// because other tool goroutines may already be in-flight.
 func (a *FunctionCallingAgent) executeTools(ctx context.Context, toolCalls []llm.ToolCall, tools []llm.Tool) []string {
 	results := make([]string, len(toolCalls))
 	var wg sync.WaitGroup
@@ -214,29 +259,51 @@ func (a *FunctionCallingAgent) executeTools(ctx context.Context, toolCalls []llm
 			default:
 			}
 
+			// P4: BeforeTool
+			currentCall := tc
+			if len(a.Hooks) > 0 {
+				tcPtr, hookErr := applyBeforeTool(ctx, a.Hooks, &currentCall)
+				if hookErr != nil {
+					results[i] = fmt.Sprintf(`{"error":"hook: %v"}`, hookErr)
+					return
+				}
+				if tcPtr != nil {
+					currentCall = *tcPtr
+				}
+			}
+
 			var tool llm.Tool
 			for _, t := range tools {
-				if t.Name() == tc.Function.Name {
+				if t.Name() == currentCall.Function.Name {
 					tool = t
 					break
 				}
 			}
 			if tool == nil {
-				results[i] = fmt.Sprintf(`{"error":"tool %q not found"}`, tc.Function.Name)
+				results[i] = fmt.Sprintf(`{"error":"tool %q not found"}`, currentCall.Function.Name)
 				return
 			}
 
 			var args map[string]any
-			if tc.Function.Arguments != "" {
-				if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
+			if currentCall.Function.Arguments != "" {
+				if err := json.Unmarshal([]byte(currentCall.Function.Arguments), &args); err != nil {
 					results[i] = fmt.Sprintf(`{"error":"failed to parse arguments: %v"}`, err)
 					return
 				}
 			}
 
-			result, err := tool.Execute(ctx, args)
-			if err != nil {
-				results[i] = fmt.Sprintf(`{"error":"%v"}`, err)
+			result, execErr := tool.Execute(ctx, args)
+
+			// P5: AfterTool
+			if len(a.Hooks) > 0 {
+				var hookErr error
+				result, hookErr = applyAfterTool(ctx, a.Hooks, &currentCall, result, execErr)
+				if hookErr != nil {
+					results[i] = fmt.Sprintf(`{"error":"hook: %v"}`, hookErr)
+					return
+				}
+			} else if execErr != nil {
+				results[i] = fmt.Sprintf(`{"error":"%v"}`, execErr)
 				return
 			}
 			results[i] = result
@@ -266,6 +333,23 @@ func (a *FunctionCallingAgent) StreamRun(ctx context.Context, req *AgentRequest)
 func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest, ch chan AgentChunk) {
 	defer close(ch)
 
+	// P6: AfterAgent — deferred to wrap all exit paths
+	didAfterAgent := false
+	defer func() {
+		if len(a.Hooks) > 0 && !didAfterAgent {
+			applyAfterAgent(ctx, a.Hooks, req, nil, nil)
+		}
+	}()
+
+	// P1: BeforeAgent
+	if len(a.Hooks) > 0 {
+		var hookErr error
+		req, hookErr = applyBeforeAgent(ctx, a.Hooks, req)
+		if hookErr != nil {
+			return
+		}
+	}
+
 	maxIter := req.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 10
@@ -291,6 +375,15 @@ func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest
 			MaxTokens:     req.MaxTokens,
 			StopSequences: req.StopSequences,
 			Tools:         req.Tools,
+		}
+
+		// P2: BeforeLLM
+		if len(a.Hooks) > 0 {
+			var hookErr error
+			chatReq, hookErr = applyBeforeLLM(ctx, a.Hooks, chatReq)
+			if hookErr != nil {
+				return
+			}
 		}
 
 		llmStream, err := a.LLM.StreamChat(ctx, chatReq)
@@ -328,6 +421,31 @@ func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest
 			}
 		}
 		llmStream.Close()
+
+		// Build a ChatResponse from accumulated streaming data for AfterLLM hook
+		accumulatedResp := &llm.ChatResponse{
+			Message: llm.Message{
+				Role:    finalRole,
+				Content: sb.String(),
+			},
+			Model:        req.Model,
+			FinishReason: llm.FinishReasonStop,
+		}
+		if finalRole == "" {
+			accumulatedResp.Message.Role = llm.RoleAssistant
+		}
+		if finalUsage != nil {
+			accumulatedResp.Usage = *finalUsage
+		}
+
+		// P3: AfterLLM
+		if len(a.Hooks) > 0 {
+			var hookErr error
+			accumulatedResp, hookErr = applyAfterLLM(ctx, a.Hooks, chatReq, accumulatedResp)
+			if hookErr != nil {
+				return
+			}
+		}
 
 		// Accumulate usage
 		if finalUsage != nil {
@@ -371,7 +489,7 @@ func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest
 			assistantMsg.ToolCalls = toolCalls
 			messages = append(messages, assistantMsg)
 
-			// Execute tools in parallel
+			// Execute tools in parallel (P4/P5 fire inside executeTools)
 			results := a.executeTools(ctx, toolCalls, req.Tools)
 
 			// Yield tool result events and append to history
@@ -416,10 +534,24 @@ func (a *FunctionCallingAgent) streamLoop(ctx context.Context, req *AgentRequest
 			Done:  true,
 			Usage: &totalUsageCopy,
 		})
+
+		// P6: AfterAgent — fire synchronously on success before defer
+		if len(a.Hooks) > 0 {
+			didAfterAgent = true
+			applyAfterAgent(ctx, a.Hooks, req, &AgentResponse{
+				Messages: messages,
+				Final:    assistantMsg,
+				Usage:    totalUsage,
+			}, nil)
+		}
 		return
 	}
 
 	// Max iterations exceeded
+	if len(a.Hooks) > 0 {
+		didAfterAgent = true
+		applyAfterAgent(ctx, a.Hooks, req, nil, fmt.Errorf("agent: max iterations (%d) exceeded without final response", maxIter))
+	}
 	safeSend(ctx, ch, AgentChunk{
 		Type: AgentEventDone,
 		Done: true,
