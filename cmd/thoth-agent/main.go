@@ -35,6 +35,7 @@ func main() {
 	registeredTools := []llm.Tool{
 		&tools.GetTimeTool{},
 		&tools.ReadFileTool{},
+		&tools.BashTool{},
 	}
 
 	// --- TUI setup ---

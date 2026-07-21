@@ -75,9 +75,9 @@ type Model struct {
 	SpinnerModel spinner.Model
 
 	// Terminal dimensions
-	Width     int
-	Height    int
-	Ready     bool
+	Width  int
+	Height int
+	Ready  bool
 
 	// Focus state (FocusSidebar / FocusViewport / FocusTextarea)
 	FocusTarget int
@@ -111,14 +111,14 @@ func NewModel() *Model {
 	sp.Spinner = spinner.Dot
 
 	return &Model{
-		Sessions:          []*Session{NewSession(0, "Session 1")},
-		ActiveIdx:         0,
-		TextArea:          ta,
-		VP:                viewport.New(0, 0),
-		SpinnerModel:      sp,
-		FocusTarget:       FocusTextarea,
-		ShowSidebar:       true,
-		UserWantsSidebar:  true,
+		Sessions:         []*Session{NewSession(0, "Session 1")},
+		ActiveIdx:        0,
+		TextArea:         ta,
+		VP:               viewport.New(0, 0),
+		SpinnerModel:     sp,
+		FocusTarget:      FocusTextarea,
+		ShowSidebar:      true,
+		UserWantsSidebar: true,
 	}
 }
 
@@ -471,7 +471,6 @@ func (m Model) handleStreamChunk(msg streamChunkMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleStreamDone(msg streamDoneMsg) (tea.Model, tea.Cmd) {
 	m.Loading = false
-	m.FocusTarget = FocusViewport // return focus to viewport
 	m.StreamingTool = ""
 
 	if msg.err != nil {
@@ -639,7 +638,7 @@ func (m Model) renderMessages() string {
 	var b strings.Builder
 
 	// Session header inside the viewport (matching go-chat pattern)
-	header := RenderInLineBlock(" "+active.Name+" ", vpW)
+	header := RenderInLineBlock(" "+active.Name+" ", vpW+4)
 	b.WriteString(header)
 	b.WriteString("\n\n")
 
@@ -654,7 +653,7 @@ func (m Model) renderMessages() string {
 	}
 
 	// Calculate message block width
-	msgW := vpW - 4
+	msgW := vpW + 2
 	if msgW < 10 {
 		msgW = 10
 	}
