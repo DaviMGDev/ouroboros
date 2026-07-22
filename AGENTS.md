@@ -6,9 +6,9 @@
 
 - **Run the CLI**: `go run ./cmd/ouroboros/ -- -p "Hello"` (or build first: `go build -o oro ./cmd/ouroboros/ && ./oro -p "Hello"`)
 - **Build binary**: `go build -o oro ./cmd/ouroboros/`
-- **Install dependencies**: `go mod tidy`
-- **Lint**: `go vet ./internal/... ./cmd/...`
-- **Format**: `gofmt -s -w ./internal/ ./cmd/`
+- **Install dependencies**: `make deps` (or `go mod tidy && go mod verify`)
+- **Lint**: `make lint` (or `go vet ./internal/... ./cmd/...`)
+- **Format**: `make fmt` (or `gofmt -s -w ./internal/ ./cmd/`)
 
 ## Testing
 
@@ -57,7 +57,8 @@ ouroboros/
   - `internal/llm/llm.go` — `LLM` interface definition, shared types (`Message`, `ChatRequest`, `ChatResponse`, `UsageStats`, `FinishReason`, `ChatStream`, `ChatChunk`, `ToolCallDelta`, `ToolCall`, `ToolDef`, `ToolFunction`, `Tool` interface), `MockLLM` implementation, and `MockChatStream` implementation
   - `internal/providers/ollama/ollama.go` — `OllamaLLM` provider implementation for local Ollama instances
   - `internal/agent/agent.go` — `Agent` interface, `FunctionCallingAgent` (concrete agent with tool-calling loop and parallel tool execution), `AgentStream`, `MockAgent`, `MockTool`
-  - `cmd/ouroboros/main.go` — CLI entry point (flag-based, streaming output, session persistence)
+  - `cmd/ouroboros/main.go` — CLI entry point (Cobra root command)
+  - `cmd/ouroboros/root.go` — Root command definition (flags, Viper config, agent execution pipeline)
 
 ## Architecture Decision Records
 
@@ -122,10 +123,50 @@ its boundaries.
 2. **Alternative B** — Why it was not chosen.
 ```
 
+## CLI
+
+The CLI is built with [Cobra](https://github.com/spf13/cobra) and [Viper](https://github.com/spf13/viper).
+
+### Configuration
+
+Optional config file (YAML). Viper searches `./ouroboros.yaml` then `~/.config/ouroboros/config.yaml`.
+Use `--config <path>` to specify a custom location.
+
+```yaml
+# ouroboros.yaml
+model: gemma4:31b-cloud
+provider:
+  base_url: http://localhost:11434
+```
+
+### Environment Variables
+
+All flags support env var overrides with the `ORO_` prefix:
+
+| Flag | Env Var |
+|------|---------|
+| `--model` / `-m` | `ORO_MODEL` |
+| `--provider-base-url` | `ORO_PROVIDER_BASE_URL` |
+| `--prompt` / `-p` | `ORO_PROMPT` |
+| `--session` / `-s` | `ORO_SESSION` |
+| `--verbose` / `-v` | `ORO_VERBOSE` |
+| `--quiet` / `-q` | `ORO_QUIET` |
+
+Precedence: **CLI flags** > **env vars** > **config file** > **defaults**.
+
+### Shell Completions
+
+```bash
+source <(oro completion bash)   # bash
+source <(oro completion zsh)    # zsh
+oro completion fish | source    # fish
+```
+
 ## Dependencies
 
-- **Current state**: Zero external dependencies (stdlib only: `context`, `fmt`)
-- **Design intent**: Providers can be added as new types implementing the `LLM` interface, keeping the core lightweight
+- **Runtime**: [Cobra](https://github.com/spf13/cobra) (CLI framework), [Viper](https://github.com/spf13/viper) (config/env management)
+- **Core `internal/` packages**: zero direct dependencies (stdlib only)
+- **Design intent**: Providers can be added as new types implementing the `LLM` interface, keeping the core framework lightweight
 
 ## Shared Types
 
