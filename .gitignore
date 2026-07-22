@@ -1,6 +1,6 @@
 # Binary
-/thoth-agent
-/thoth-agent.exe
+/oro
+/oro.exe
 
 # Test binaries
 *.test

@@ -1,11 +1,11 @@
-# Thoth Agent
+# Ouroboros
 
 > A Go-based LLM agent framework defining a generic chat completion interface with typed requests/responses and a mock implementation for testing.
 
 ## Build & Development
 
-- **Run the CLI**: `go run ./cmd/thoth-agent/ -- -p "Hello"` (or build first: `go build -o thoth-agent ./cmd/thoth-agent/ && ./thoth-agent -p "Hello"`)
-- **Build binary**: `go build -o thoth-agent ./cmd/thoth-agent/`
+- **Run the CLI**: `go run ./cmd/ouroboros/ -- -p "Hello"` (or build first: `go build -o oro ./cmd/ouroboros/ && ./oro -p "Hello"`)
+- **Build binary**: `go build -o oro ./cmd/ouroboros/`
 - **Install dependencies**: `go mod tidy`
 - **Lint**: `go vet ./internal/... ./cmd/...`
 - **Format**: `gofmt -s -w ./internal/ ./cmd/`
@@ -37,7 +37,7 @@
 - **Structure**: Module layout with `internal/` subpackages for encapsulation:
 
 ```
-thoth-agent/
+ouroboros/
 ├── internal/
 │   ├── llm/                  # LLM interface + shared types + MockLLM
 │   ├── agent/                # Agent interface + FunctionCallingAgent + hooks + MockAgent
@@ -45,7 +45,7 @@ thoth-agent/
 │   └── providers/
 │       └── ollama/           # OllamaLLM provider implementation
 ├── cmd/
-│   └── thoth-agent/          # main() — CLI entry point
+│   └── ouroboros/          # main() — CLI entry point
 ├── docs/
 │   └── adr/                  # Architecture Decision Records
 ├── .golangci.yml             # Linter configuration
@@ -57,7 +57,7 @@ thoth-agent/
   - `internal/llm/llm.go` — `LLM` interface definition, shared types (`Message`, `ChatRequest`, `ChatResponse`, `UsageStats`, `FinishReason`, `ChatStream`, `ChatChunk`, `ToolCallDelta`, `ToolCall`, `ToolDef`, `ToolFunction`, `Tool` interface), `MockLLM` implementation, and `MockChatStream` implementation
   - `internal/providers/ollama/ollama.go` — `OllamaLLM` provider implementation for local Ollama instances
   - `internal/agent/agent.go` — `Agent` interface, `FunctionCallingAgent` (concrete agent with tool-calling loop and parallel tool execution), `AgentStream`, `MockAgent`, `MockTool`
-  - `cmd/thoth-agent/main.go` — CLI entry point (flag-based, streaming output, session persistence)
+  - `cmd/ouroboros/main.go` — CLI entry point (flag-based, streaming output, session persistence)
 
 ## Architecture Decision Records
 
@@ -167,7 +167,7 @@ its boundaries.
 - `internal/providers/ollama/ollama.go` — `OllamaLLM` provider (stdlib only, connects to Ollama's `/api/chat`)
 - `internal/agent/agent.go` — `Agent` interface, `FunctionCallingAgent`, `AgentStream`, `MockAgent`, `MockTool`
 - `internal/agent/hook.go` — `Hook` interface and `BaseHook` for intercepting agent lifecycle events
-- `cmd/thoth-agent/main.go` — CLI entry point (flag-based, streaming output, session persistence)
+- `cmd/ouroboros/main.go` — CLI entry point (flag-based, streaming output, session persistence)
 
 ## Providers
 
@@ -176,7 +176,7 @@ Add a new provider by creating a file under `internal/providers/` (e.g., `intern
 ```go
 package openai
 
-import "github.com/DaviMGDev/thoth-agent/internal/llm"
+import "github.com/DaviMGDev/ouroboros/internal/llm"
 
 type OpenAILLM struct {
 	apiKey string

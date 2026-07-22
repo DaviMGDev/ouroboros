@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 func TestMockLLM_Chat(t *testing.T) {

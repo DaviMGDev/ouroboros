@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 var _ llm.Tool = (*BashTool)(nil)

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 // Agent orchestrates a tool-using conversation with an LLM.

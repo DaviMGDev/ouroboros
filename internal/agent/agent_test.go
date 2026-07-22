@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 // ---------------------------------------------------------------------------

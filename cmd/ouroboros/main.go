@@ -11,10 +11,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/DaviMGDev/thoth-agent/internal/agent"
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
-	"github.com/DaviMGDev/thoth-agent/internal/providers/ollama"
-	"github.com/DaviMGDev/thoth-agent/internal/tools"
+	"github.com/DaviMGDev/ouroboros/internal/agent"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/providers/ollama"
+	"github.com/DaviMGDev/ouroboros/internal/tools"
 )
 
 // Version is set at build time via -ldflags.
@@ -54,14 +54,14 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "Print version and exit")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: thoth-agent [flags]\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: oro [flags]\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  thoth-agent -p \"What is 2+2?\"\n")
-		fmt.Fprintf(os.Stderr, "  echo \"Hello\" | thoth-agent -q\n")
-		fmt.Fprintf(os.Stderr, "  thoth-agent -s ./chat.json -p \"Remember my name is Davi\"\n")
-		fmt.Fprintf(os.Stderr, "  thoth-agent -s ./chat.json -p \"What's my name?\"\n")
+		fmt.Fprintf(os.Stderr, "  oro -p \"What is 2+2?\"\n")
+		fmt.Fprintf(os.Stderr, "  echo \"Hello\" | oro -q\n")
+		fmt.Fprintf(os.Stderr, "  oro -s ./chat.json -p \"Remember my name is Davi\"\n")
+		fmt.Fprintf(os.Stderr, "  oro -s ./chat.json -p \"What's my name?\"\n")
 	}
 
 	flag.Parse()
@@ -69,7 +69,7 @@ func main() {
 	// --- Version ---
 
 	if showVersion {
-		fmt.Println("thoth-agent version", Version)
+		fmt.Println("oro version", Version)
 		os.Exit(0)
 	}
 

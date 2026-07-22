@@ -23,14 +23,14 @@ The `thoth-agent` project started as a prototype with all Go source files in a s
 Restructure the project into a standard Go module layout with subpackages:
 
 ```
-thoth-agent/
+ouroboros/
 ├── internal/
 │   ├── llm/                  # LLM interface + shared types + MockLLM
 │   ├── agent/                # Agent interface + FunctionCallingAgent + MockAgent + MockTool
 │   └── providers/
 │       └── ollama/           # OllamaLLM provider implementation
 ├── cmd/
-│   └── thoth-agent/             # main() — REPL entry point
+│   └── ouroboros/             # main() — CLI entry point
 ├── docs/
 │   └── adr/                  # Architecture Decision Records
 ├── .golangci.yml
@@ -49,7 +49,7 @@ Key decisions within this structure:
 
 - **`internal/providers/ollama/` (package `ollama`)**: Contains `OllamaLLM` and all Ollama-specific wire types. Imports only from `internal/llm`.
 
-- **`cmd/thoth-agent/` (package `main`)**: Contains the REPL entry point. Imports from both `internal/agent` and `internal/providers/ollama`. This is the only package with a `main()` function.
+- **`cmd/ouroboros/` (package `main`)**: Contains the REPL entry point. Imports from both `internal/agent` and `internal/providers/ollama`. This is the only package with a `main()` function.
 
 - **Test packages**: Tests may use either the same package (e.g., `package agent`, `package ollama`, `package bus`) for access to unexported helpers, or an external test package (`package llm_test`) for black-box testing. Same-package tests access internal types like `ollamaChatRequest` and `agentStream`; external test packages enforce interface-only access.
 
@@ -57,7 +57,7 @@ Key decisions within this structure:
 
 ### Positive
 
-- **Clear boundaries** — Import cycles are caught at compile time. The dependency graph is strict: `llm` ← `agent`, `llm` ← `ollama`, `agent`+`ollama` ← `cmd/thoth-agent`.
+- **Clear boundaries** — Import cycles are caught at compile time. The dependency graph is strict: `llm` ← `agent`, `llm` ← `ollama`, `agent`+`ollama` ← `cmd/ouroboros`.
 
 - **Encapsulation** — Unexported types (e.g., `ollamaChatRequest`, `ollamaChatStream`, `agentStream`) are now truly private to their package.
 
@@ -79,7 +79,7 @@ Key decisions within this structure:
 
 - **Over-engineering** — The current flat structure was viable for a 7-file project. The new layout adds overhead (package names, imports, directory navigation). Mitigation: the overhead is standard Go practice and will pay off as the project grows.
 
-- **Breaking local scripts** — Any scripts that ran `go run .` must now use `go run ./cmd/thoth-agent/`. Mitigation: the Makefile and README have been updated.
+- **Breaking local scripts** — Any scripts that ran `go run .` must now use `go run ./cmd/ouroboros/`. Mitigation: the Makefile and README have been updated.
 
 ## Rejected Alternatives
 
@@ -89,4 +89,4 @@ Key decisions within this structure:
 
 3. **Public packages (no `internal/`)** — Rejected because the project is in early prototyping and public packages would create a backward-compatibility burden. The `internal/` convention lets us refactor freely.
 
-4. **Separate Go module for providers** — Rejected as premature. A separate module for providers (e.g., `thoth-agent-provider-ollama`) would add release overhead. This can be done later when the provider surface stabilizes.
+4. **Separate Go module for providers** — Rejected as premature. A separate module for providers (e.g., `ouroboros-provider-ollama`) would add release overhead. This can be done later when the provider surface stabilizes.

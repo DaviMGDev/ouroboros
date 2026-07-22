@@ -1,3 +1,3 @@
-module github.com/DaviMGDev/thoth-agent
+module github.com/DaviMGDev/ouroboros
 
 go 1.24.4

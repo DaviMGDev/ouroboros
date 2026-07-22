@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 // Hook intercepts the agent's execution at six defined points.

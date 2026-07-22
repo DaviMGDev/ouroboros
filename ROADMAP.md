@@ -1,6 +1,6 @@
 # Roadmap
 
-Planned features and improvements for thoth-agent.
+Planned features and improvements for ouroboros.
 
 ## Session Management
 
@@ -21,7 +21,7 @@ Make the agent configurable via external files (YAML/TOML/JSON).
 
 - Model selection, provider settings, system prompts
 - Tool registration and enable/disable
-- Config file locations: `~/.config/thoth-agent/config.yaml` or `./thoth-agent.yaml`
+- Config file locations: `~/.config/ouroboros/config.yaml` or `./ouroboros.yaml`
 
 ## Multiple Providers
 

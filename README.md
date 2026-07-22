@@ -1,29 +1,29 @@
-# Thoth Agent
+# Ouroboros
 
-[![CI](https://github.com/DaviMGDev/thoth-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/DaviMGDev/thoth-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/DaviMGDev/ouroboros/actions/workflows/ci.yml/badge.svg)](https://github.com/DaviMGDev/ouroboros/actions/workflows/ci.yml)
 
 A Go-based LLM agent framework with a generic chat completion interface, tool-calling agent loop, and built-in mock implementation.
 
-> **Version**: Run `thoth-agent --version` or see [CHANGELOG](./CHANGELOG.md).
+> **Version**: Run `oro --version` or see [CHANGELOG](./CHANGELOG.md).
 
 ## Quick Start (CLI)
 
 ```bash
 # Build
-go build -o thoth-agent ./cmd/thoth-agent/
+go build -o oro ./cmd/ouroboros/
 
 # Single prompt
-./thoth-agent -p "What is 2+2?"
+./oro -p "What is 2+2?"
 
 # Pipe from stdin
-echo "Hello" | ./thoth-agent -q
+echo "Hello" | ./oro -q
 
 # Persistent multi-turn conversation
-./thoth-agent -s ./chat.json -p "My name is Davi"
-./thoth-agent -s ./chat.json -p "What's my name?"
+./oro -s ./chat.json -p "My name is Davi"
+./oro -s ./chat.json -p "What's my name?"
 
 # Verbose mode (see tool calls)
-./thoth-agent -v -p "List files in /tmp"
+./oro -v -p "List files in /tmp"
 ```
 
 | Flag | Shorthand | Description |
@@ -40,7 +40,7 @@ echo "Hello" | ./thoth-agent -q
 
 ## Overview
 
-`thoth-agent` defines a minimal `LLM` interface that abstracts provider-specific LLM interactions behind three methods:
+`ouroboros` defines a minimal `LLM` interface that abstracts provider-specific LLM interactions behind three methods:
 
 - **`Chat(ctx, *ChatRequest)`** — Conversational chat with message history, model selection, and generation parameters.
 - **`Complete(ctx, prompt)`** — Single-turn text completion.
@@ -73,7 +73,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 func main() {
@@ -109,7 +109,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 func main() {
@@ -154,7 +154,7 @@ package openai
 import (
 	"context"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 type OpenAILLM struct {
@@ -187,8 +187,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
-	"github.com/DaviMGDev/thoth-agent/internal/providers/ollama"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/providers/ollama"
 )
 
 func main() {

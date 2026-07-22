@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/DaviMGDev/thoth-agent/internal/llm"
+	"github.com/DaviMGDev/ouroboros/internal/llm"
 )
 
 func TestOllamaLLM_Chat(t *testing.T) {

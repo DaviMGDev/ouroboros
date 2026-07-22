@@ -2,13 +2,13 @@
 
 **Date**: 2026-07-21
 
-**Status**: Exploratory
+**Status**: Accepted
 
 ---
 
 ## 1. The Rename: thoth-agent → ouroboros
 
-Full identity shift: Go module path (`github.com/DaviMGDev/ouroboros`), all imports, binary name, repo on GitHub, docs.
+Full identity shift: Go module path (`github.com/DaviMGDev/ouroboros`), all imports, binary name (`oro`), repo on GitHub, docs.
 
 - **Timing is ideal** — zero external consumers, everything behind `internal/`, empty `go.sum`. Cost only goes up from here.
 - "Ouroboros" trades functional descriptiveness for poetic accuracy — the name captures recursive self-consumption, which directly maps to the planned features.
